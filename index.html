@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MAAIDO — The AI Development Orchestrator</title>
+<meta name="description" content="MAAIDO orchestrates Claude, Codex, Antigravity and Hermes to plan, build, review, recover and ship software — while you stay in command." />
+<style>
+  :root{
+    --bg:#050A14; --bg2:#0C1B33; --surface:#0B1424; --elev:#12203A;
+    --primary:#3B82F6; --accent1:#2563EB; --accent2:#06B6D4;
+    --text:#F2F7FF; --sub:#8FA3BF; --border:#1D2E4A;
+    --claude:#D97757; --codex:#10A37F; --anti:#4285F4; --hermes:#F2A93B;
+    --radius:18px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    overflow-x:hidden; line-height:1.6;
+  }
+  ::selection{background:rgba(6,182,212,.35)}
+  #stars{position:fixed;inset:0;z-index:0;pointer-events:none}
+  .grad-text{background:linear-gradient(100deg,var(--accent1),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 32px;position:relative;z-index:2}
+
+  /* ---------- Nav ---------- */
+  nav{
+    position:fixed;top:0;left:0;right:0;z-index:50;
+    backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+    background:rgba(5,10,20,.55);border-bottom:1px solid transparent;
+    transition:border-color .3s, background .3s;
+  }
+  nav.scrolled{border-bottom-color:var(--border);background:rgba(5,10,20,.8)}
+  .nav-inner{max-width:1200px;margin:0 auto;padding:14px 32px;display:flex;align-items:center;gap:28px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:2px;font-size:18px;text-decoration:none;color:var(--text)}
+  .logo-mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(120deg,var(--accent1),var(--accent2));display:grid;place-items:center;font-size:15px;font-weight:800;color:#fff;box-shadow:0 0 18px rgba(59,130,246,.5)}
+  .nav-links{display:flex;gap:22px;margin-left:auto;align-items:center}
+  .nav-links a{color:var(--sub);text-decoration:none;font-size:14px;font-weight:600;transition:color .2s}
+  .nav-links a:hover{color:var(--text)}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:12px;font-weight:700;font-size:14px;text-decoration:none;transition:transform .2s, box-shadow .2s;cursor:pointer;border:none}
+  .btn:hover{transform:translateY(-2px)}
+  .btn-primary{background:linear-gradient(100deg,var(--accent1),var(--accent2));color:#fff;box-shadow:0 4px 24px rgba(37,99,235,.4)}
+  .btn-primary:hover{box-shadow:0 8px 32px rgba(6,182,212,.5)}
+  .btn-ghost{background:rgba(18,32,58,.6);color:var(--text);border:1px solid var(--border)}
+  .btn-ghost:hover{border-color:var(--accent2)}
+  .btn-lg{padding:15px 30px;font-size:16px;border-radius:14px}
+
+  /* ---------- Hero (sticky scroll track) ---------- */
+  #heroTrack{height:280vh;position:relative;z-index:2}
+  .hero-viewport{position:sticky;top:0;height:100vh;display:flex;align-items:center;overflow:hidden}
+  .hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center;width:100%}
+  .hero-copy h1{font-size:clamp(38px,5vw,64px);line-height:1.08;font-weight:800;letter-spacing:-1px}
+  .hero-copy p.lead{margin:22px 0 30px;color:var(--sub);font-size:18px;max-width:520px}
+  .hero-ctas{display:flex;gap:14px;flex-wrap:wrap}
+  .hero-note{margin-top:18px;font-size:13px;color:var(--sub)}
+  .hero-note code{background:var(--elev);padding:2px 8px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent2)}
+
+  .scene{position:relative;height:620px;perspective:1200px}
+  .core{position:absolute;left:50%;top:50%;width:min(420px,80%);aspect-ratio:1;transform:translate(-50%,-50%);will-change:transform;filter:drop-shadow(0 0 60px rgba(37,99,235,.35))}
+  .core img{width:100%;height:100%;object-fit:contain;border-radius:28px;
+    mask-image:radial-gradient(circle at 50% 50%, black 62%, transparent 74%);
+    -webkit-mask-image:radial-gradient(circle at 50% 50%, black 62%, transparent 74%);}
+  .orb{position:absolute;left:50%;top:50%;width:104px;height:104px;margin:-52px 0 0 -52px;will-change:transform}
+  .orb .spin{width:100%;height:100%;animation:bob 5s ease-in-out infinite}
+  .orb img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 6px 22px rgba(0,0,0,.5))}
+  .orb .tag{position:absolute;left:50%;top:108%;transform:translateX(-50%);font-size:12px;font-weight:700;letter-spacing:1px;opacity:0;transition:opacity .3s;white-space:nowrap}
+  @keyframes bob{0%,100%{transform:translateY(-7px)}50%{transform:translateY(7px)}}
+  .scroll-hint{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);color:var(--sub);font-size:12px;letter-spacing:2px;text-transform:uppercase;animation:bob 2.4s ease-in-out infinite}
+
+  /* ---------- Sections ---------- */
+  section{position:relative;z-index:2;padding:110px 0}
+  .kicker{font-size:13px;letter-spacing:3px;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h2.title{font-size:clamp(30px,3.6vw,46px);font-weight:800;margin:12px 0 14px;letter-spacing:-.5px}
+  p.section-sub{color:var(--sub);max-width:640px;font-size:17px}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:40px}
+  .stat{padding:26px;border-radius:var(--radius);background:linear-gradient(140deg,rgba(18,32,58,.7),rgba(11,20,36,.5));border:1px solid var(--border);backdrop-filter:blur(14px)}
+  .stat b{display:block;font-size:34px;font-weight:800;font-family:'JetBrains Mono',monospace}
+  .stat span{color:var(--sub);font-size:14px}
+
+  .cards{display:grid;grid-template-columns:repeat(12,1fr);gap:20px;margin-top:48px}
+  .card{
+    border-radius:var(--radius);border:1px solid var(--border);
+    background:linear-gradient(140deg,rgba(18,32,58,.65),rgba(11,20,36,.45));
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    padding:28px;position:relative;overflow:hidden;
+    transition:transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s, border-color .35s;
+  }
+  .card:hover{transform:translateY(-6px);border-color:rgba(6,182,212,.5);box-shadow:0 18px 48px rgba(4,10,22,.6),0 0 40px rgba(6,182,212,.12)}
+  .card h3{font-size:20px;font-weight:800;margin-bottom:8px}
+  .card p{color:var(--sub);font-size:15px}
+  .card .art{margin:-28px -28px 22px;height:230px;overflow:hidden;border-bottom:1px solid var(--border)}
+  .card .art img{width:100%;height:100%;object-fit:cover;transition:transform .6s}
+  .card:hover .art img{transform:scale(1.05)}
+  .span-7{grid-column:span 7}.span-5{grid-column:span 5}.span-4{grid-column:span 4}.span-6{grid-column:span 6}.span-12{grid-column:span 12}
+  .chip{display:inline-block;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:1px;margin-bottom:14px;border:1px solid var(--border);color:var(--accent2)}
+
+  /* lifecycle */
+  .lifecycle{display:flex;gap:0;margin-top:52px;overflow-x:auto;padding-bottom:12px}
+  .stage{min-width:132px;text-align:center;position:relative;padding:0 8px}
+  .stage .dot{width:52px;height:52px;margin:0 auto 12px;border-radius:16px;display:grid;place-items:center;font-size:22px;background:var(--elev);border:1px solid var(--border);transition:box-shadow .3s,border-color .3s}
+  .stage:hover .dot{border-color:var(--accent2);box-shadow:0 0 24px rgba(6,182,212,.35)}
+  .stage b{font-size:13px;letter-spacing:1px}
+  .stage span{display:block;font-size:11.5px;color:var(--sub);margin-top:4px}
+  .stage::after{content:"";position:absolute;top:26px;right:-38%;width:76%;height:2px;background:linear-gradient(90deg,var(--accent1),var(--accent2));opacity:.35}
+  .stage:last-child::after{display:none}
+
+  /* agents */
+  .agent-card{border-radius:var(--radius);padding:28px;border:1px solid var(--border);background:linear-gradient(150deg,rgba(18,32,58,.7),rgba(11,20,36,.45));backdrop-filter:blur(14px);position:relative;overflow:hidden}
+  .agent-card::before{content:"";position:absolute;top:-60px;right:-60px;width:160px;height:160px;border-radius:50%;filter:blur(60px);opacity:.4}
+  .agent-card.claude::before{background:var(--claude)} .agent-card.codex::before{background:var(--codex)}
+  .agent-card.anti::before{background:var(--anti)} .agent-card.hermes::before{background:var(--hermes)}
+  .agent-card img{width:88px;height:88px;object-fit:contain;margin-bottom:14px;filter:drop-shadow(0 6px 18px rgba(0,0,0,.45))}
+  .agent-card h3{font-size:19px}
+  .agent-card .role{font-size:12.5px;letter-spacing:1px;text-transform:uppercase;font-weight:700;margin-bottom:10px}
+  .claude .role{color:var(--claude)} .codex .role{color:var(--codex)} .anti .role{color:var(--anti)} .hermes .role{color:var(--hermes)}
+  .tiers{margin-top:14px;display:flex;gap:6px;flex-wrap:wrap}
+  .tiers code{font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(5,10,20,.6);border:1px solid var(--border);border-radius:6px;padding:3px 8px;color:var(--sub)}
+
+  /* pricing */
+  .price-card{border-radius:22px;padding:36px 30px;border:1px solid var(--border);background:linear-gradient(150deg,rgba(18,32,58,.7),rgba(11,20,36,.45));backdrop-filter:blur(14px);display:flex;flex-direction:column;position:relative}
+  .price-card.featured{border-color:rgba(6,182,212,.6);box-shadow:0 0 60px rgba(6,182,212,.15);transform:scale(1.03)}
+  .price-card .plan{font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--sub)}
+  .price-card .price{font-size:44px;font-weight:800;margin:12px 0 2px;font-family:'JetBrains Mono',monospace}
+  .price-card .per{color:var(--sub);font-size:13px;margin-bottom:22px}
+  .price-card ul{list-style:none;margin-bottom:28px;flex:1}
+  .price-card li{padding:7px 0;color:var(--sub);font-size:14.5px;display:flex;gap:10px;align-items:flex-start}
+  .price-card li::before{content:"◆";color:var(--accent2);font-size:10px;margin-top:5px}
+  .badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:linear-gradient(100deg,var(--accent1),var(--accent2));padding:5px 16px;border-radius:999px;font-size:11.5px;font-weight:800;letter-spacing:1.5px}
+
+  /* download */
+  .dl-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:30px}
+  .dl-note{margin-top:16px;color:var(--sub);font-size:13px}
+
+  footer{position:relative;z-index:2;border-top:1px solid var(--border);padding:44px 0;color:var(--sub);font-size:13.5px}
+  .foot{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:center}
+  .foot .links{display:flex;gap:20px}
+  .foot a{color:var(--sub);text-decoration:none}
+  .foot a:hover{color:var(--text)}
+
+  /* reveal on scroll */
+  .reveal{opacity:0;transform:translateY(36px);transition:opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1)}
+  .reveal.visible{opacity:1;transform:none}
+
+  @media(max-width:900px){
+    .hero-grid{grid-template-columns:1fr}
+    .scene{height:420px;order:-1}
+    .core{width:min(300px,72%)}
+    .orb{width:74px;height:74px;margin:-37px 0 0 -37px}
+    .cards>*{grid-column:span 12 !important}
+    .stats{grid-template-columns:repeat(2,1fr)}
+    #heroTrack{height:220vh}
+    .nav-links a:not(.btn){display:none}
+  }
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+
+<nav id="nav">
+  <div class="nav-inner">
+    <a class="logo" href="#"><span class="logo-mark">M</span>MAAIDO</a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#lifecycle">How it works</a>
+      <a href="#agents">Agents</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#download">Download</a>
+      <a class="btn btn-primary" href="#download">Launch Portal</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO with scroll dismantle / re-align -->
+<div id="heroTrack">
+  <div class="hero-viewport">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <span class="kicker">Multi-Agent AI Development Orchestrator</span>
+        <h1>Your AI engineering team, <span class="grad-text">under your command.</span></h1>
+        <p class="lead">MAAIDO orchestrates Claude, Codex, Antigravity and Hermes to plan, build, review, recover and ship software — with every critical decision gated by you.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-primary btn-lg" href="#download">⬇ Download Desktop</a>
+          <a class="btn btn-ghost btn-lg" href="#download">Try Online Portal →</a>
+        </div>
+        <p class="hero-note">Human-governed · GitHub as source of truth · <code>4 agents</code> · <code>9-stage lifecycle</code></p>
+      </div>
+      <div class="scene" id="scene">
+        <div class="core" id="core"><img src="assets/hero_core.png" alt="MAAIDO orchestration core"/></div>
+        <div class="orb" data-i="0"><div class="spin"><img src="assets/orb_claude.png" alt="Claude agent"/></div><span class="tag" style="color:var(--claude)">CLAUDE</span></div>
+        <div class="orb" data-i="1"><div class="spin"><img src="assets/orb_codex.png" alt="Codex agent"/></div><span class="tag" style="color:var(--codex)">CODEX</span></div>
+        <div class="orb" data-i="2"><div class="spin"><img src="assets/orb_antigravity.png" alt="Antigravity agent"/></div><span class="tag" style="color:var(--anti)">ANTIGRAVITY</span></div>
+        <div class="orb" data-i="3"><div class="spin"><img src="assets/orb_hermes.png" alt="Hermes agent"/></div><span class="tag" style="color:var(--hermes)">HERMES</span></div>
+      </div>
+    </div>
+    <div class="scroll-hint">Scroll — watch the system dismantle ▾</div>
+  </div>
+</div>
+
+<!-- STATS -->
+<section style="padding-top:20px">
+  <div class="wrap">
+    <div class="stats reveal">
+      <div class="stat"><b class="grad-text">4</b><span>AI agents orchestrated in parallel</span></div>
+      <div class="stat"><b class="grad-text">9</b><span>lifecycle stages, idea → learn</span></div>
+      <div class="stat"><b class="grad-text">100%</b><span>human-governed critical actions</span></div>
+      <div class="stat"><b class="grad-text">60–90%</b><span>fewer tokens via efficiency stack</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="wrap">
+    <span class="kicker reveal">Mission Control</span>
+    <h2 class="title reveal">Everything your AI workforce does,<br/><span class="grad-text">on one screen.</span></h2>
+    <p class="section-sub reveal">Built from the same modules that power the MAAIDO desktop app — every card below is a real page in the product.</p>
+    <div class="cards">
+      <div class="card span-7 reveal">
+        <div class="art"><img src="assets/feature_mission.png" alt="Mission Control"/></div>
+        <span class="chip">MISSION CONTROL</span>
+        <h3>Command center with an Emergency Stop</h3>
+        <p>System health, live agent radar, sprint progress, pending approvals and GitHub activity — plus Start, Pause, Hold, Resume and Emergency Stop commands no agent can ignore.</p>
+      </div>
+      <div class="card span-5 reveal">
+        <div class="art"><img src="assets/feature_recovery.png" alt="Recovery Engine"/></div>
+        <span class="chip">RECOVERY ENGINE</span>
+        <h3>Work that survives failure</h3>
+        <p>Session died mid-task? MAAIDO freezes unsafe actions, saves branch, diff and checkpoint, then resumes from the last safe point — automatically escalating to a stronger model on retry.</p>
+      </div>
+      <div class="card span-5 reveal">
+        <div class="art"><img src="assets/feature_memory.png" alt="Memory Vault"/></div>
+        <span class="chip">CONTEXT GUARDIAN</span>
+        <h3>Agents forget. MAAIDO doesn't.</h3>
+        <p>Constitution, blueprint, task state, handover notes and semantic memory are injected into every agent task. No agent ever works from session memory alone.</p>
+      </div>
+      <div class="card span-7 reveal">
+        <span class="chip">GOVERNED AUTONOMY</span>
+        <h3>Approvals, risk engine &amp; immutable audit</h3>
+        <p>Every action is risk-classified — Low to Critical. Production deploys, migrations and destructive operations always wait for your explicit approval, and every decision lands in an immutable audit trail. The learning engine suggests what could be safely automated; it never acts on its own.</p>
+        <div class="tiers" style="margin-top:18px">
+          <code>risk: low → auto</code><code>risk: high → premium model</code><code>risk: critical → human approval</code>
+        </div>
+      </div>
+      <div class="card span-4 reveal"><span class="chip">AI STUDIO</span><h3>Blueprints &amp; PRDs</h3><p>Generate blueprints, PRDs and sprint plans with OpenAI, Groq or Gemini — history persisted.</p></div>
+      <div class="card span-4 reveal"><span class="chip">GITHUB NATIVE</span><h3>GitHub is the brain</h3><p>Issues, PRs, labels and webhooks are the source of truth and the communication layer. Nothing lives only in chat.</p></div>
+      <div class="card span-4 reveal"><span class="chip">TOKEN EFFICIENCY</span><h3>Spend less per task</h3><p>rtk proxying, output compression, minimal-code discipline and a knowledge graph cut token burn by up to 90%.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- LIFECYCLE -->
+<section id="lifecycle">
+  <div class="wrap">
+    <span class="kicker reveal">How it works</span>
+    <h2 class="title reveal">Idea in. <span class="grad-text">Shipped software out.</span></h2>
+    <p class="section-sub reveal">Nine governed stages. Agents execute, GitHub remembers, MAAIDO orchestrates — you approve what matters.</p>
+    <div class="lifecycle reveal">
+      <div class="stage"><div class="dot">💡</div><b>IDEA</b><span>Concept defined</span></div>
+      <div class="stage"><div class="dot">🧭</div><b>PLAN</b><span>Blueprint by Architect</span></div>
+      <div class="stage"><div class="dot">⚡</div><b>BUILD</b><span>Agents implement</span></div>
+      <div class="stage"><div class="dot">🧪</div><b>TEST</b><span>Automated + manual</span></div>
+      <div class="stage"><div class="dot">🔍</div><b>REVIEW</b><span>Quality &amp; security</span></div>
+      <div class="stage"><div class="dot">✅</div><b>APPROVE</b><span>Human gate</span></div>
+      <div class="stage"><div class="dot">🚀</div><b>DEPLOY</b><span>Staging → prod</span></div>
+      <div class="stage"><div class="dot">📡</div><b>MONITOR</b><span>Real-time telemetry</span></div>
+      <div class="stage"><div class="dot">🧠</div><b>LEARN</b><span>Memory improves</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- AGENTS -->
+<section id="agents">
+  <div class="wrap">
+    <span class="kicker reveal">The roster</span>
+    <h2 class="title reveal">Four agents. <span class="grad-text">One chain of command.</span></h2>
+    <p class="section-sub reveal">MAAIDO assigns the right agent and the right model tier per task — cheap models for boilerplate, premium reasoning for architecture — and escalates automatically on failure.</p>
+    <div class="cards" style="margin-top:44px">
+      <div class="agent-card claude span-6 reveal">
+        <img src="assets/orb_claude.png" alt="Claude"/>
+        <div class="role">Architect · Reviewer</div><h3>Claude</h3>
+        <p style="color:var(--sub);font-size:14.5px">High-level planning, architecture decisions, correction loops and blueprint stewardship.</p>
+        <div class="tiers"><code>haiku</code><code>sonnet</code><code>opus</code></div>
+      </div>
+      <div class="agent-card codex span-6 reveal">
+        <img src="assets/orb_codex.png" alt="Codex"/>
+        <div class="role">Senior Developer</div><h3>Codex</h3>
+        <p style="color:var(--sub);font-size:14.5px">Complex implementation, refactoring, pull requests and review-comment resolution.</p>
+        <div class="tiers"><code>gpt-5-mini</code><code>gpt-5</code><code>gpt-5-pro</code></div>
+      </div>
+      <div class="agent-card anti span-6 reveal">
+        <img src="assets/orb_antigravity.png" alt="Antigravity"/>
+        <div class="role">Developer · Tester</div><h3>Antigravity</h3>
+        <p style="color:var(--sub);font-size:14.5px">UI work, browser verification, testing and recovery when other agents are unavailable.</p>
+        <div class="tiers"><code>gemini-flash</code><code>gemini-pro</code><code>gemini-ultra</code></div>
+      </div>
+      <div class="agent-card hermes span-6 reveal">
+        <img src="assets/orb_hermes.png" alt="Hermes"/>
+        <div class="role">Researcher · Generalist</div><h3>Hermes</h3>
+        <p style="color:var(--sub);font-size:14.5px">Research, documentation and general tasks — starts on a free tier and escalates only when needed.</p>
+        <div class="tiers"><code>step-3.7-flash:free</code><code>hermes-4-70b</code><code>hermes-4-405b</code></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="wrap">
+    <span class="kicker reveal">Pricing</span>
+    <h2 class="title reveal">Start free. <span class="grad-text">Scale when you ship.</span></h2>
+    <div class="cards" style="margin-top:50px">
+      <div class="price-card span-4 reveal">
+        <span class="plan">Solo</span>
+        <div class="price">$0</div><div class="per">forever · local-first</div>
+        <ul>
+          <li>1 active project</li>
+          <li>2 orchestrated agents</li>
+          <li>Mission Control + Emergency Stop</li>
+          <li>GitHub source-of-truth workflow</li>
+          <li>Local recovery &amp; checkpoints</li>
+          <li>Bring your own agent CLIs &amp; keys</li>
+        </ul>
+        <a class="btn btn-ghost" href="#download">Download Free</a>
+      </div>
+      <div class="price-card featured span-4 reveal">
+        <span class="badge">MOST POPULAR</span>
+        <span class="plan">Pro</span>
+        <div class="price">$29</div><div class="per">per user / month</div>
+        <ul>
+          <li>Unlimited projects</li>
+          <li>All 4 agents + auto model escalation</li>
+          <li>AI Studio (OpenAI, Groq, Gemini)</li>
+          <li>Semantic memory &amp; Context Guardian</li>
+          <li>Learning engine + analytics</li>
+          <li>Token-efficiency stack (60–90% savings)</li>
+          <li>Cloud portal access</li>
+        </ul>
+        <a class="btn btn-primary" href="#download">Start 14-day trial</a>
+      </div>
+      <div class="price-card span-4 reveal">
+        <span class="plan">Enterprise</span>
+        <div class="price">Custom</div><div class="per">annual · SSO &amp; support</div>
+        <ul>
+          <li>Multi-tenant workspaces &amp; RBAC</li>
+          <li>Private cloud or on-prem deployment</li>
+          <li>Compliance-grade immutable audit</li>
+          <li>Custom agent adapters &amp; trust levels</li>
+          <li>Dedicated support &amp; onboarding</li>
+        </ul>
+        <a class="btn btn-ghost" href="mailto:sales@maaido.dev">Contact Sales</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section id="download" style="padding-bottom:140px">
+  <div class="wrap" style="text-align:center">
+    <span class="kicker reveal">Get MAAIDO</span>
+    <h2 class="title reveal">Take command <span class="grad-text">today.</span></h2>
+    <p class="section-sub reveal" style="margin:0 auto">Run the full mission-control desktop app locally, or try the online portal — same cockpit, zero install.</p>
+    <div class="dl-row reveal" style="justify-content:center">
+      <a class="btn btn-primary btn-lg" href="https://github.com/AtchayamG/MAAIDO/releases/latest" target="_blank" rel="noopener">⬇ Download for Windows</a>
+      <a class="btn btn-ghost btn-lg" href="https://github.com/AtchayamG/MAAIDO/releases/latest" target="_blank" rel="noopener">macOS</a>
+      <a class="btn btn-ghost btn-lg" href="https://github.com/AtchayamG/MAAIDO/releases/latest" target="_blank" rel="noopener">Linux</a>
+      <a class="btn btn-ghost btn-lg" href="https://app.maaido.dev" target="_blank" rel="noopener">🌐 Try Online Portal</a>
+    </div>
+    <p class="dl-note reveal">v1.0 · Flutter desktop + web · Requires your own agent CLI credentials (<code style="font-family:'JetBrains Mono',monospace">claude</code>, <code style="font-family:'JetBrains Mono',monospace">codex</code>, <code style="font-family:'JetBrains Mono',monospace">agy</code>, <code style="font-family:'JetBrains Mono',monospace">hermes</code>)</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <a class="logo" href="#"><span class="logo-mark">M</span>MAAIDO</a>
+    <div class="links">
+      <a href="#features">Features</a><a href="#pricing">Pricing</a>
+      <a href="https://github.com/AtchayamG/MAAIDO" target="_blank" rel="noopener">GitHub</a>
+      <a href="#">Docs</a><a href="#">Constitution</a>
+    </div>
+    <span>© 2026 ATCHAY · MAAIDO — agents execute, GitHub remembers, you command.</span>
+  </div>
+</footer>
+
+<script>
+/* ---------- star field ---------- */
+const cv=document.getElementById('stars'),cx=cv.getContext('2d');let stars=[];
+function sizeCanvas(){cv.width=innerWidth;cv.height=innerHeight;stars=Array.from({length:Math.min(160,innerWidth/8)},()=>({x:Math.random()*cv.width,y:Math.random()*cv.height,r:Math.random()*1.4+.3,s:Math.random()*.25+.05,tw:Math.random()*Math.PI*2}))}
+sizeCanvas();addEventListener('resize',sizeCanvas);
+(function draw(t){cx.clearRect(0,0,cv.width,cv.height);
+  for(const st of stars){st.y-=st.s;if(st.y<0)st.y=cv.height;
+    const a=.35+.3*Math.sin(t/900+st.tw);
+    cx.fillStyle=`rgba(140,190,255,${a})`;cx.beginPath();cx.arc(st.x,st.y,st.r,0,7);cx.fill()}
+  requestAnimationFrame(draw)})(0);
+
+/* ---------- nav ---------- */
+const nav=document.getElementById('nav');
+addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>10),{passive:true});
+
+/* ---------- reveal on scroll ---------- */
+const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.target.classList.add('visible')),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* ---------- hero: orbit -> dismantle -> re-align ---------- */
+const track=document.getElementById('heroTrack');
+const core=document.getElementById('core');
+const orbs=[...document.querySelectorAll('.orb')];
+const ORBIT_R=250, lerp=(a,b,t)=>a+(b-a)*t, ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+/* scatter vectors: pieces fly apart in different directions with spin */
+const scatter=[{x:-460,y:-300,r:-160,s:1.25},{x:430,y:-240,r:150,s:1.3},{x:-420,y:290,r:-210,s:1.2},{x:470,y:320,r:200,s:1.35}];
+let baseAngle=0,lastT=0;
+function pose(i,p,t){
+  const N=orbs.length, orbit={x:Math.cos(baseAngle+i*2*Math.PI/N)*ORBIT_R*.92, y:Math.sin(baseAngle+i*2*Math.PI/N)*ORBIT_R*.55, r:0, s:1};
+  const row={x:(i-(N-1)/2)*168, y:250, r:0, s:.78};
+  if(p<=0)return orbit;
+  if(p<.55){const k=ease(p/.55);return{x:lerp(orbit.x,scatter[i].x,k),y:lerp(orbit.y,scatter[i].y,k),r:lerp(0,scatter[i].r,k),s:lerp(1,scatter[i].s,k)}}
+  const k=ease((p-.55)/.45);
+  return{x:lerp(scatter[i].x,row.x,k),y:lerp(scatter[i].y,row.y,k),r:lerp(scatter[i].r,0,k),s:lerp(scatter[i].s,.78,k)};
+}
+function frame(t){
+  const dt=Math.min(50,t-lastT);lastT=t;
+  const total=track.offsetHeight-innerHeight;
+  const p=Math.min(1,Math.max(0,-track.getBoundingClientRect().top/total));
+  if(p<.02)baseAngle+=dt*.00045; /* idle orbit spin */
+  orbs.forEach((orb,i)=>{
+    const q=pose(i,p,t);
+    orb.style.transform=`translate3d(${q.x}px,${q.y}px,0) rotate(${q.r}deg) scale(${q.s})`;
+    orb.querySelector('.tag').style.opacity=p>.86?1:0;
+  });
+  const cs=lerp(1,.8,ease(Math.min(1,p/.55))), cry=p*38, crx=p*14, cop=p>.9?lerp(1,.55,(p-.9)/.1):1;
+  core.style.transform=`translate(-50%,-50%) scale(${cs}) rotateY(${cry}deg) rotateX(${crx}deg)`;
+  core.style.opacity=cop;
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
